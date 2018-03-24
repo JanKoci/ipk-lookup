@@ -1,3 +1,9 @@
+# Experimental files 
+pokus*
+
+# Executable program
+ipk-lookup
+
 # Prerequisites
 *.d
 
