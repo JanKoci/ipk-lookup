@@ -11,11 +11,12 @@
 #define PORT 53 // DNS port
 
 // types of DNS query
-#define A 1
-#define NS 2
-#define CNAME 5
-#define PTR 12
-#define AAAA 28
+unsigned short A = 1;
+unsigned short NS = 2;
+unsigned short CNAME = 5;
+unsigned short PTR = 12;
+unsigned short AAAA = 28;
+unsigned short IN = 1;
 
 // to set recursion bit in DNS message flags
 unsigned short RECURSIVE = 256; // 0000 0001 0000 0000

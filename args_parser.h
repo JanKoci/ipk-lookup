@@ -7,7 +7,6 @@
 #ifndef ARGS_PARSER
 #define ARGS_PARSER
 
-// make it a class or a map ???
 typedef struct {
   bool help;
   bool iterative;
@@ -17,6 +16,8 @@ typedef struct {
   int timeout;
 }Arguments;
 
+void print_usage(const char*);
+void print_help(const char*);
 void init_args(Arguments*);
 void parse(int, char const**, Arguments*);
 

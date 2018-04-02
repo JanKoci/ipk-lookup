@@ -24,6 +24,23 @@ void init_args(Arguments* args)
 
 }
 
+void print_usage(const char* program)
+{
+  printf("USAGE: %s -s server [-T timeout] [-t type] [-i] name\n", program);
+}
+
+void print_help(const char* program)
+{
+  print_usage(program);
+  putchar('\n');
+  printf("s (server)\t\tDNS server (IPv4 address) to query\n");
+  printf("T (timeout)\t\ttimeout for the query, default 5 seconds\n");
+  printf("t (type)\t\ttype of the queried record: A (default), AAAA, NS, PTR, CNAME\n");
+  printf("i (iterative)\t\tforces iterative queries\n");
+  printf("name\t\t\tdomain name to translate or IPv4/IPv6 address if 'type' is PTR\n");
+  putchar('\n');
+}
+
 void parse(int argc, char const* argv[], Arguments* args)
 {
   int opt;
@@ -40,6 +57,7 @@ void parse(int argc, char const* argv[], Arguments* args)
         if (args->timeout <= 0)
         {
           fprintf(stderr, "ERROR: Argument timeout must be grater than 0\n");
+          print_usage(argv[0]);
           exit(1);
         }
         break;
@@ -50,6 +68,7 @@ void parse(int argc, char const* argv[], Arguments* args)
             (strcmp(args->type, "PTR") != 0) && (strcmp(args->type, "CNAME") != 0))
         {
           fprintf(stderr, "ERROR: Invalid type entered: %s\n", args->type);
+          print_usage(argv[0]);
           exit(1);
         }
         break;
@@ -58,9 +77,15 @@ void parse(int argc, char const* argv[], Arguments* args)
         break;
       case '?':
         fprintf(stderr, "ERROR: Unknown arguments passed\n");
+        print_usage(argv[0]);
         exit(1);
     }
   }
+  if (args->help)
+  {
+    return;
+  }
+
   if ((optind+1) == argc)
   {
     args->name = argv[optind];
@@ -68,17 +93,20 @@ void parse(int argc, char const* argv[], Arguments* args)
   else if ((optind+1) > argc)
   {
     fprintf(stderr, "ERROR: Missing name of the domain to be translated\n");
-    printf("optind = %d\n", optind);
-    printf("argc = %d\n", argc);
+    print_usage(argv[0]);
+    // printf("optind = %d\n", optind);
+    // printf("argc = %d\n", argc);
     exit(1);
   }
   else
   {
     fprintf(stderr, "ERROR: Unknown arguments passed\n");
+    print_usage(argv[0]);
     exit(1);
   }
   if (!args->server) {
     fprintf(stderr, "ERROR: Missing server parameter\n");
+    print_usage(argv[0]);
     exit(1);
   }
 }

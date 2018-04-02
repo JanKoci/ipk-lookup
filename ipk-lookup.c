@@ -16,6 +16,12 @@
 #include "hex_dump.h"
 #include "args_parser.h"
 extern unsigned short RECURSIVE;
+extern unsigned short A;
+extern unsigned short NS;
+extern unsigned short CNAME;
+extern unsigned short PTR;
+extern unsigned short AAAA;
+extern unsigned short IN;
 
 
 int main(int argc, char const *argv[]) {
@@ -29,9 +35,14 @@ int main(int argc, char const *argv[]) {
 
   init_args(&args);
   parse(argc, argv, &args);
+  if (args.help)
+  {
+    print_help(argv[0]);
+    exit(0);
+  }
 
+  // create socket
   if ((client_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    // fprintf(stderr, "ERROR: Cannot create socket\n");
     perror("ERROR: Cannot create socket");
     exit(1);
   }
@@ -53,15 +64,46 @@ int main(int argc, char const *argv[]) {
   unsigned char* result = toDnsNameFormat(q_name, (const unsigned char*)args.name);
   hex_dump((char*)result, strlen((char*)result));
   putchar('\n');
+  // hex_dump((char*)message, sizeof(struct dns_header)+strlen((char*)result));
 
-  hex_dump((char*)message, sizeof(struct dns_header)+strlen((char*)result));
+  // function toDnsNameFormat moves q_name pointer behind the domain name
+  struct dns_question* question;
+  question = (struct dns_question*)&message[sizeof(struct dns_header)+strlen((char*)result)+1];
+  if (strcmp(args.type, "A") == 0)
+  {
+    question->type = 1;
+  }
+  else if (strcmp(args.type, "AAAA") == 0)
+  {
+    question->type = AAAA;
+  }
+  else if (strcmp(args.type, "NS") == 0)
+  {
+    question->type = NS;
+  }
+  else if (strcmp(args.type, "PTR") == 0)
+  {
+    question->type = PTR;
+  }
+  else if (strcmp(args.type, "CNAME") == 0)
+  {
+    question->type = CNAME;
+  }
+  question->cls = 1;
+  hex_dump((char*)message, sizeof(struct dns_header)+strlen((char*)result)+sizeof(struct dns_question)+1);
+
 
   close(client_socket);
   printf("Socket closed!\n");
   return 0;
 }
 
-
+/*
+Function to convert hostname to dns host name format
+@param dnsName    pointer to memory to store the converted value
+@param host       the hostname to be converted
+@return           pointer to the beginning of the converted value
+*/
 unsigned char* toDnsNameFormat(unsigned char* dnsName, const unsigned char* host)
 {
   unsigned int point = 0;
