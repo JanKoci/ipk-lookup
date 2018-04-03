@@ -6,6 +6,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "hex_dump.h"
+// #include "ipk-lookup.h"
+
+
+void print_ans(struct dns_answer* ans)
+{
+  printf("cls = %hu ", ans->cls);
+  printf("type = %hu ", ans->type);
+  printf("ttl = %u ", ans->ttl);
+  printf("data_len = %hu ", ans->data_len);
+}
 
 void printbinchar(char c)
 {

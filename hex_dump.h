@@ -6,6 +6,9 @@
 #ifndef HEX_DUMP_H
 #define HEX_DUMP_H
 
+#include "ipk-lookup.h"
+
+void print_ans(struct dns_answer* ans);
 void printbinchar(char c);
 void hex_dump(char* data, int size);
 

@@ -35,9 +35,9 @@ void print_help(const char* program)
   putchar('\n');
   printf("s (server)\t\tDNS server (IPv4 address) to query\n");
   printf("T (timeout)\t\ttimeout for the query, default 5 seconds\n");
-  printf("t (type)\t\ttype of the queried record: A (default), AAAA, NS, PTR, CNAME\n");
+  printf("t (type)\t\ttype of the query: A (default), AAAA, NS, PTR, CNAME\n");
   printf("i (iterative)\t\tforces iterative queries\n");
-  printf("name\t\t\tdomain name to translate or IPv4/IPv6 address if 'type' is PTR\n");
+  printf("name\t\t\tdomain name to be translated or IPv4/IPv6 address if 'type' is PTR\n");
   putchar('\n');
 }
 
@@ -58,7 +58,7 @@ void parse(int argc, char const* argv[], Arguments* args)
         {
           fprintf(stderr, "ERROR: Argument timeout must be grater than 0\n");
           print_usage(argv[0]);
-          exit(1);
+          exit(2);
         }
         break;
       case 't':
@@ -69,7 +69,7 @@ void parse(int argc, char const* argv[], Arguments* args)
         {
           fprintf(stderr, "ERROR: Invalid type entered: %s\n", args->type);
           print_usage(argv[0]);
-          exit(1);
+          exit(2);
         }
         break;
       case 'i':
@@ -78,7 +78,7 @@ void parse(int argc, char const* argv[], Arguments* args)
       case '?':
         fprintf(stderr, "ERROR: Unknown arguments passed\n");
         print_usage(argv[0]);
-        exit(1);
+        exit(2);
     }
   }
   if (args->help)
@@ -96,17 +96,17 @@ void parse(int argc, char const* argv[], Arguments* args)
     print_usage(argv[0]);
     // printf("optind = %d\n", optind);
     // printf("argc = %d\n", argc);
-    exit(1);
+    exit(2);
   }
   else
   {
     fprintf(stderr, "ERROR: Unknown arguments passed\n");
     print_usage(argv[0]);
-    exit(1);
+    exit(2);
   }
   if (!args->server) {
     fprintf(stderr, "ERROR: Missing server parameter\n");
     print_usage(argv[0]);
-    exit(1);
+    exit(2);
   }
 }
