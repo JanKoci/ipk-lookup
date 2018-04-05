@@ -80,20 +80,7 @@ int main(int argc, char const *argv[]) {
   uint8_t* q_name = &message[message_len_actual];
   if (strcmp(args.type, "PTR"))
   {
-    int ipv = get_IPv(args.name);
-    if (ipv == 4)
-    {
-      ;
-    }
-    else if (ipv == 6)
-    {
-      ;
-    }
-    else
-    {
-      perror("ERROR: invalid address format");
-      exit(1);
-    }
+    ;
   }
   else
   {
@@ -307,38 +294,3 @@ uint8_t* toDnsNameFormat(uint8_t* dnsName, const uint8_t* host)
   dnsName++;
   return start;
 }
-
-int get_IPv(uint8_t* addr)
-{
-  char temp_buff[46];
-  if (inet_pton(AF_INET, (const char*)addr, temp_buff) == 1)
-  {
-    return 4;
-  }
-  else if (inet_pton(AF_INET6, (const char*)addr, temp_buff) == 1)
-  {
-    return 6;
-  }
-  else
-  {
-    return -1;
-  }
-}
-
-// int is_ipv4(uint8_t* addr, int addr_len)
-// {
-//   uint8_t c;
-//   for (int i = 0; i < addr_len; i++)
-//   {
-//     c = *addr++;
-//     if (c == '.')
-//     {
-//       return 1;
-//     }
-//     if (c == ':')
-//     {
-//       return 0;
-//     }
-//   }
-//   return -1;
-// }

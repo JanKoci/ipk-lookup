@@ -50,7 +50,7 @@ void printbinchar(char c)
     }
 }
 
-void hex_dump(char* data, int size)
+void hex_dump(unsigned char* data, int size)
 {
   char previous;
   for (int i = 0; i < size; i++)

@@ -10,6 +10,6 @@
 
 void print_ans(struct dns_answer* ans);
 void printbinchar(char c);
-void hex_dump(char* data, int size);
+void hex_dump(unsigned char* data, int size);
 
 #endif // HEX_DUMP_H
