@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+void print_ipv6(const uint8_t* data);
 int get_IPv(uint8_t* addr);
 int count_groups(const uint8_t* addr);
 void convert_ipv6(const uint8_t* src, uint8_t* dest);

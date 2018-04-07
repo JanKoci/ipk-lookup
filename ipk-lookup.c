@@ -16,6 +16,7 @@
 #include "ipk-lookup.h"
 #include "hex_dump.h"
 #include "args_parser.h"
+#include "dns_convert.h"
 
 // types of DNS query
 uint16_t A = 1;
@@ -54,23 +55,20 @@ int main(int argc, char const *argv[]) {
     perror("ERROR: Cannot create socket");
     exit(1);
   }
-  // set recv timeout
+  // set receive timeout
   if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, \
                   sizeof(timeout)) < 0)
   {
     perror("ERROR: setsockopt failed");
     exit(1);
   }
-  printf("Socket created!\n");
 
   /************************* Create DNS header *************************/
   struct dns_header* header;
   header = (struct dns_header*)&message;
   header->id = htons(4); // what ID ???
   header->flags = 0;
-  if (!args.iterative) {
-    header->flags |= htons(RECURSIVE);
-  }
+  header->flags |= htons(RECURSIVE); // ALWAYS ?????
   header->q_count = htons(1);
   header->ans_count = 0;
   header->ns_count = 0;
@@ -78,20 +76,26 @@ int main(int argc, char const *argv[]) {
   message_len_actual += sizeof(struct dns_header);
 
   uint8_t* q_name = &message[message_len_actual];
-  if (strcmp(args.type, "PTR"))
+  if (strcmp(args.type, "PTR") == 0)
   {
-    ;
+    int ipv;
+    char new_name[128] = {0};
+    if ((ipv = get_IPv((uint8_t*)args.name)) == -1)
+    {
+      fprintf(stderr, "ERROR: invalid IP address %s\n", args.name);
+      exit(1);
+    }
+    get_reverse((const uint8_t*)args.name, (uint8_t*)new_name, ipv);
+    args.name = new_name;
   }
-  else
-  {
-    uint8_t* result = toDnsNameFormat(q_name, (const uint8_t*)args.name);
-    message_len_actual += (strlen((char*)result) + 1);
-  }
-  // hex_dump((char*)result, strlen((char*)result));
-  // putchar('\n');
-  // hex_dump((char*)message, sizeof(struct dns_header)+strlen((char*)result));
 
-  // function toDnsNameFormat moves q_name pointer behind the domain name
+  uint8_t* result = toDnsNameFormat(q_name, (const uint8_t*)args.name);
+  message_len_actual += (strlen((char*)result) + 1);
+
+  // debug
+  // hex_dump((unsigned char*)result, strlen((char*)result));
+  // putchar('\n');
+  // hex_dump((unsigned char*)message, sizeof(struct dns_header)+strlen((char*)result));
 
 /************************* Create question structure *************************/
   struct dns_question* question;
@@ -118,6 +122,7 @@ int main(int argc, char const *argv[]) {
   }
   question->cls = htons(IN);
   message_len_actual += sizeof(struct dns_question);
+  // debug
   // hex_dump((char*)message, message_len_actual);
 
   /************************* Send the query *************************/
@@ -144,19 +149,18 @@ int main(int argc, char const *argv[]) {
   /************************* Process the answer *************************/
   header = (struct dns_header*)&message;
   uint16_t ans_count = ntohs(header->ans_count);
-  uint16_t ns_count = ntohs(header->ns_count);
-  uint16_t ar_count = ntohs(header->ar_count);
+  // uint16_t ns_count = ntohs(header->ns_count);
+  // uint16_t ar_count = ntohs(header->ar_count);
 
   // debug
-  printf("ans_count = %hu\n", ans_count);
-  printf("ns_count = %hu\n", ns_count);
-  printf("ar_count = %hu\n", ar_count);
+  // printf("ans_count = %hu\n", ans_count);
+  // printf("ns_count = %hu\n", ns_count);
+  // printf("ar_count = %hu\n", ar_count);
 
   process_answers((const uint8_t*)message, (const uint8_t*)&message[message_len_actual], ans_count);
 
   /************************* Close socket *************************/
   close(client_socket);
-  printf("Socket closed!\n");
   return 0;
 }
 
@@ -179,6 +183,7 @@ void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t 
     answer.ttl = ntohl(net_answer->ttl);
     answer.data_len = ntohs(net_answer->data_len);
     printf("%s ", converted_name);
+    // debug
     // printf("%c\n", *ret);
     print_ans(&answer);
     const uint8_t* rdata = ret + ANSWER_SIZE;
@@ -187,7 +192,11 @@ void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t 
     {
       for (uint16_t j = 0; j < answer.data_len; j++)
       {
-        printf("%u.", *rdata++);
+        printf("%u", *rdata++);
+        if (j+1 != answer.data_len)
+        {
+          putchar('.');
+        }
       }
     }
     else if (answer.type == CNAME || answer.type == NS || answer.type == PTR)
@@ -201,11 +210,7 @@ void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t 
     }
     else if (answer.type == AAAA)
     {
-      if (inet_ntop(AF_INET6, rdata, converted_name, 128) == NULL)
-      {
-        perror("ERROR: inet_ntop");
-        exit(1);
-      }
+      print_ipv6(rdata);
     }
     putchar('\n');
     memset(converted_name, 0, 128);

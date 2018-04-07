@@ -38,8 +38,9 @@ void print_ans(struct dns_answer* ans)
     default:
       printf("fuck = %hu ", ans->type);
   }
-  printf("ttl = %u ", ans->ttl);
-  printf("data_len = %hu ", ans->data_len);
+  // debug
+  // printf("ttl = %u ", ans->ttl);
+  // printf("data_len = %hu ", ans->data_len);
 }
 
 void printbinchar(char c)

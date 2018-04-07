@@ -6,6 +6,18 @@
 // #include <stdlib.h>
 #include "dns_convert.h"
 
+void print_ipv6(const uint8_t* data)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    printf("%02x", data[i]);
+    if ((i+1)%2 == 0 && (i != 15))
+    {
+      printf(":");
+    }
+  }
+}
+
 int get_IPv(uint8_t* addr)
 {
   unsigned char temp_buff[46] = {0};
@@ -130,7 +142,6 @@ void convert_ipv4(const uint8_t* src, uint8_t* dest)
 
 void get_reverse(const uint8_t* src, uint8_t* dest, int ipv)
 {
-  size_t len = strlen((char*)src);
   if (ipv == 4)
   {
     convert_ipv4(src, dest);
