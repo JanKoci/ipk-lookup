@@ -27,18 +27,16 @@ uint16_t AAAA = 28;
 uint16_t IN = 1;
 // to set recursion bit in DNS message flags
 uint16_t RECURSIVE = 256; // 0000 0001 0000 0000
+uint16_t port = PORT; // PORT 53
 
 
 int main(int argc, char const *argv[]) {
   int client_socket;
-  struct sockaddr_in server_addr;
-  uint8_t message[MESSAGE_LEN] = {0}; // unsigned ?
-  unsigned int message_len_actual = 0;
+  uint8_t message[MESSAGE_LEN] = {0};
+  int query_len = 0;
   struct timeval timeout;
 
-  uint16_t port = PORT; // PORT 53
   Arguments args;
-
 
   init_args(&args);
   parse(argc, argv, &args);
@@ -63,91 +61,26 @@ int main(int argc, char const *argv[]) {
     exit(1);
   }
 
-  /************************* Create DNS header *************************/
-  struct dns_header* header;
-  header = (struct dns_header*)&message;
-  header->id = htons(4); // what ID ???
-  header->flags = 0;
-  header->flags |= htons(RECURSIVE); // ALWAYS ?????
-  header->q_count = htons(1);
-  header->ans_count = 0;
-  header->ns_count = 0;
-  header->ar_count = 0;
-  message_len_actual += sizeof(struct dns_header);
-
-  uint8_t* q_name = &message[message_len_actual];
-  if (strcmp(args.type, "PTR") == 0)
+  /************************* Create the query *************************/
+  query_len = create_query(message, args.type, args.name);
+  if (query_len == -1)
   {
-    int ipv;
-    char new_name[128] = {0};
-    if ((ipv = get_IPv((uint8_t*)args.name)) == -1)
-    {
-      fprintf(stderr, "ERROR: invalid IP address %s\n", args.name);
-      exit(1);
-    }
-    get_reverse((const uint8_t*)args.name, (uint8_t*)new_name, ipv);
-    args.name = new_name;
-  }
-
-  uint8_t* result = toDnsNameFormat(q_name, (const uint8_t*)args.name);
-  message_len_actual += (strlen((char*)result) + 1);
-
-  // debug
-  // hex_dump((unsigned char*)result, strlen((char*)result));
-  // putchar('\n');
-  // hex_dump((unsigned char*)message, sizeof(struct dns_header)+strlen((char*)result));
-
-/************************* Create question structure *************************/
-  struct dns_question* question;
-  question = (struct dns_question*)&message[message_len_actual];
-  if (strcmp(args.type, "A") == 0)
-  {
-    question->type = htons(A);
-  }
-  else if (strcmp(args.type, "AAAA") == 0)
-  {
-    question->type = htons(AAAA);
-  }
-  else if (strcmp(args.type, "NS") == 0)
-  {
-    question->type = htons(NS);
-  }
-  else if (strcmp(args.type, "PTR") == 0)
-  {
-    question->type = htons(PTR);
-  }
-  else if (strcmp(args.type, "CNAME") == 0)
-  {
-    question->type = htons(CNAME);
-  }
-  question->cls = htons(IN);
-  message_len_actual += sizeof(struct dns_question);
-  // debug
-  // hex_dump((char*)message, message_len_actual);
-
-  /************************* Send the query *************************/
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(port);
-  server_addr.sin_addr.s_addr = inet_addr(args.server);
-
-  socklen_t server_len = (socklen_t)sizeof(server_addr);
-  ssize_t bytestx;
-  if ((bytestx = sendto(client_socket, &message, message_len_actual, 0, \
-      (struct sockaddr*)&server_addr, server_len)) < 0)
-  {
-    perror("ERROR: sendto");
+    close(client_socket);
     exit(1);
   }
-  /************************* Receive answer *************************/
-  if ((bytestx = recvfrom(client_socket, &message, MESSAGE_LEN, 0, \
-        (struct sockaddr*)&server_addr, &server_len)) < 0)
+
+  // debug
+  // hex_dump((unsigned char*)message, message_len_actual);
+
+  /************************* Send the query *************************/
+  if (send_query_and_receive_answer(args.server, client_socket, (uint8_t* const)message, query_len) == -1)
   {
-    perror("ERROR: recv");
+    close(client_socket);
     exit(1);
   }
 
   /************************* Process the answer *************************/
-  header = (struct dns_header*)&message;
+  struct dns_header* header = (struct dns_header*)message;
   uint16_t ans_count = ntohs(header->ans_count);
   // uint16_t ns_count = ntohs(header->ns_count);
   // uint16_t ar_count = ntohs(header->ar_count);
@@ -157,13 +90,113 @@ int main(int argc, char const *argv[]) {
   // printf("ns_count = %hu\n", ns_count);
   // printf("ar_count = %hu\n", ar_count);
 
-  process_answers((const uint8_t*)message, (const uint8_t*)&message[message_len_actual], ans_count);
+  process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], ans_count);
 
   /************************* Close socket *************************/
   close(client_socket);
   return 0;
 }
 
+
+int send_query_and_receive_answer(const char* server, int client_socket, uint8_t* const message, unsigned int query_len)
+{
+  struct sockaddr_in server_addr;
+
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(port);
+  server_addr.sin_addr.s_addr = inet_addr(server);
+
+  socklen_t server_len = (socklen_t)sizeof(server_addr);
+  ssize_t bytestx;
+  if ((bytestx = sendto(client_socket, message, query_len, 0, \
+      (struct sockaddr*)&server_addr, server_len)) < 0)
+  {
+    perror("ERROR: sendto");
+    return -1;
+  }
+  /************************* Receive answer *************************/
+  if ((bytestx = recvfrom(client_socket, message, MESSAGE_LEN, 0, \
+        (struct sockaddr*)&server_addr, &server_len)) < 0)
+  {
+    perror("ERROR: recv");
+    return -1;
+  }
+  return 0;
+}
+
+int create_query(uint8_t* const message, const char* type, const char* name)
+{
+  unsigned int message_len_actual = 0;
+  /************************* Create DNS header *************************/
+  struct dns_header* header;
+  header = (struct dns_header*)message;
+  create_header(header);
+  message_len_actual += sizeof(struct dns_header);
+
+  uint8_t* q_name = &message[message_len_actual];
+  if (strcmp(type, "PTR") == 0)
+  {
+    int ipv;
+    char new_name[128] = {0};
+    if ((ipv = get_IPv((uint8_t*)name)) == -1)
+    {
+      fprintf(stderr, "ERROR: invalid IP address %s\n", name);
+      return -1;
+    }
+    get_reverse((const uint8_t*)name, (uint8_t*)new_name, ipv);
+    name = new_name;
+  }
+  uint8_t* result = toDnsNameFormat(q_name, (const uint8_t*)name);
+  message_len_actual += (strlen((char*)result) + 1);
+  // debug
+  // hex_dump((unsigned char*)result, strlen((char*)result));
+  // putchar('\n');
+  // hex_dump((unsigned char*)message, sizeof(struct dns_header)+strlen((char*)result));
+
+/************************* Create question structure *************************/
+  struct dns_question* question;
+  question = (struct dns_question*)&message[message_len_actual];
+  create_question(question, type);
+  message_len_actual += sizeof(struct dns_question);
+  return message_len_actual;
+}
+
+
+void create_header(struct dns_header* header)
+{
+  header->id = htons(4); // what ID ???
+  header->flags = 0;
+  header->flags |= htons(RECURSIVE); // ALWAYS ?????
+  header->q_count = htons(1);
+  header->ans_count = 0;
+  header->ns_count = 0;
+  header->ar_count = 0;
+}
+
+void create_question(struct dns_question* question, const char* type)
+{
+  if (strcmp(type, "A") == 0)
+  {
+    question->type = htons(A);
+  }
+  else if (strcmp(type, "AAAA") == 0)
+  {
+    question->type = htons(AAAA);
+  }
+  else if (strcmp(type, "NS") == 0)
+  {
+    question->type = htons(NS);
+  }
+  else if (strcmp(type, "PTR") == 0)
+  {
+    question->type = htons(PTR);
+  }
+  else if (strcmp(type, "CNAME") == 0)
+  {
+    question->type = htons(CNAME);
+  }
+  question->cls = htons(IN);
+}
 
 void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t ans_count)
 {
@@ -228,6 +261,13 @@ const uint8_t* getDnsName(uint8_t* converted_name, const uint8_t* dns_name, cons
   const uint8_t* ret_ptr1 = dns_name;
   const uint8_t* ret_ptr2 = NULL;
 
+  // if first Byte is 0 it is the ROOT server .
+  if (*dns_name == 0)
+  {
+    *converted_name++ = '.';
+    *converted_name++ = '\0';
+  }
+
   while ((byte = *dns_name) != 0)
   {
     if ((byte & mask) == 0)
@@ -280,19 +320,21 @@ uint8_t* toDnsNameFormat(uint8_t* dnsName, const uint8_t* host)
   unsigned int point = 0;
   uint8_t* start = dnsName;
   strcat((char*)host, ".");
-
-  for (unsigned int i = 0; i < strlen((char*)host); i++)
+  if (*host != '.')
   {
-    if (host[i] == '.')
+    for (unsigned int i = 0; i < strlen((char*)host); i++)
     {
-      *dnsName = i - point;
-      dnsName++;
-      for (;point < i; point++)
+      if (host[i] == '.')
       {
-        *dnsName = host[point];
+        *dnsName = i - point;
         dnsName++;
+        for (;point < i; point++)
+        {
+          *dnsName = host[point];
+          dnsName++;
+        }
+        point++;
       }
-      point++;
     }
   }
   *dnsName = '\0';
