@@ -36,8 +36,8 @@ int main(int argc, char const *argv[]) {
   int query_len = 0;
   struct timeval timeout;
 
+  /******************** Parse command line arguments ********************/
   Arguments args;
-
   init_args(&args);
   parse(argc, argv, &args);
   if (args.help)
@@ -61,36 +61,39 @@ int main(int argc, char const *argv[]) {
     exit(1);
   }
 
-  /************************* Create the query *************************/
-  query_len = create_query(message, args.type, args.name);
-  if (query_len == -1)
+  if (args.iterative)
   {
-    close(client_socket);
-    exit(1);
+    ;
+  }
+  else
+  {
+    /************************* Create the query *************************/
+    query_len = create_query(message, args.type, args.name);
+    if (query_len == -1)
+    {
+      close(client_socket);
+      exit(1);
+    }
+    // debug
+    // hex_dump((unsigned char*)message, message_len_actual);
+    /************************* Send the query *************************/
+    if (send_query_and_receive_answer(args.server, client_socket, (uint8_t* const)message, query_len) == -1)
+    {
+      close(client_socket);
+      exit(1);
+    }
+    /************************* Process the answer *************************/
+    struct dns_header* header = (struct dns_header*)message;
+    uint16_t ans_count = ntohs(header->ans_count);
+    // uint16_t ns_count = ntohs(header->ns_count);
+    // uint16_t ar_count = ntohs(header->ar_count);
+    // debug
+    // printf("ans_count = %hu\n", ans_count);
+    // printf("ns_count = %hu\n", ns_count);
+    // printf("ar_count = %hu\n", ar_count);
+    process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], ans_count);
   }
 
-  // debug
-  // hex_dump((unsigned char*)message, message_len_actual);
-
-  /************************* Send the query *************************/
-  if (send_query_and_receive_answer(args.server, client_socket, (uint8_t* const)message, query_len) == -1)
-  {
-    close(client_socket);
-    exit(1);
-  }
-
-  /************************* Process the answer *************************/
-  struct dns_header* header = (struct dns_header*)message;
-  uint16_t ans_count = ntohs(header->ans_count);
-  // uint16_t ns_count = ntohs(header->ns_count);
-  // uint16_t ar_count = ntohs(header->ar_count);
-
-  // debug
-  // printf("ans_count = %hu\n", ans_count);
-  // printf("ns_count = %hu\n", ns_count);
-  // printf("ar_count = %hu\n", ar_count);
-
-  process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], ans_count);
 
   /************************* Close socket *************************/
   close(client_socket);

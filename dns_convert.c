@@ -6,6 +6,28 @@
 // #include <stdlib.h>
 #include "dns_convert.h"
 
+
+int parse_iter_domain(char* domain, int point)
+{
+  int len = strlen(domain);
+  for (int i = len-1; i >= 0; i--)
+  {
+    if (domain[i] == '.')
+    {
+      if (point > i)
+      {
+        point = i;
+        break;
+      }
+    }
+    if (i == 0)
+    {
+      point = i;
+    }
+  }
+  return point;
+}
+
 void print_ipv6(const uint8_t* data)
 {
   for (int i = 0; i < 16; i++)
@@ -36,14 +58,14 @@ int get_IPv(uint8_t* addr)
 }
 
 
-int count_groups(const uint8_t* addr)
+int count_groups(const uint8_t* addr, char delimiter)
 {
   int len = strlen((const char*)addr);
   int counter = 0;
   int group_counter = 0;
   for (int i = 0; i < len; i++)
   {
-    if (addr[i] == ':')
+    if (addr[i] == delimiter)
     {
       if (counter > 0)
       {
@@ -70,7 +92,7 @@ void convert_ipv6(const uint8_t* src, uint8_t* dest)
   int counter = 0;
   uint8_t c;
   uint8_t c_prev = 0;
-  int groups = count_groups(src);
+  int groups = count_groups(src, ':');
 
   for (int i = 0; i < len; i++) {
     c = src[len-i-1];
