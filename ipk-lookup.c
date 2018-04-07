@@ -161,7 +161,6 @@ int create_query(uint8_t* const message, const char* type, const char* name)
   return message_len_actual;
 }
 
-
 void create_header(struct dns_header* header)
 {
   header->id = htons(4); // what ID ???

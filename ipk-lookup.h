@@ -47,6 +47,7 @@ struct dns_answer {
 };
 #pragma pack(pop)
 
+
 int send_query_and_receive_answer(const char*, int, uint8_t* const, unsigned int);
 int create_query(uint8_t* const message, const char* type, const char* name);
 void create_header(struct dns_header* header);
