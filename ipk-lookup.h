@@ -12,6 +12,8 @@
 #define MESSAGE_LEN 512 // lenght of a DNS message
 #define PORT 53 // DNS port
 #define ANSWER_SIZE 10
+#define IPV4_LEN 4
+#define IPV6_LEN 16
 
 // DNS message header
 // note: both DNS query and response have the same
@@ -32,6 +34,7 @@ struct dns_question {
   uint16_t cls; // 1 = Internet
 };
 
+#pragma pack(push,1)
 // DNS message answer (Resource Record)
 struct dns_answer {
   // name: name of the queried address
@@ -41,8 +44,12 @@ struct dns_answer {
   uint16_t data_len;
   // record_data: [Address: 172.217.23.226] (query type was A)
 };
+#pragma pack(pop)
 
+
+void process_answers(const uint8_t* message, const uint8_t* dns_name, uint16_t ans_count);
 const uint8_t* getDnsName(uint8_t* converted_name, const uint8_t* dns_name, const uint8_t* base);
 uint8_t* toDnsNameFormat(uint8_t* dnsName, const uint8_t* host);
+int get_IPv(uint8_t* addr);
 
 #endif // IPK_LOOKUP_H

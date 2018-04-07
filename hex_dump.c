@@ -11,10 +11,36 @@
 
 void print_ans(struct dns_answer* ans)
 {
-  printf("cls = %hu ", ans->cls);
-  printf("type = %hu ", ans->type);
-  printf("ttl = %u ", ans->ttl);
-  printf("data_len = %hu ", ans->data_len);
+  if (ans->cls == 1)
+  {
+    printf("IN ");
+  }
+  else
+  {
+    printf("cls = %hu ", ans->cls);
+  }
+  switch (ans->type) {
+    case 1:
+      printf("A ");
+      break;
+    case 2:
+      printf("NS ");
+      break;
+    case 5:
+      printf("CNAME ");
+      break;
+    case 12:
+      printf("PTR ");
+      break;
+    case 28:
+      printf("AAAA ");
+      break;
+    default:
+      printf("fuck = %hu ", ans->type);
+  }
+  // debug
+  // printf("ttl = %u ", ans->ttl);
+  // printf("data_len = %hu ", ans->data_len);
 }
 
 void printbinchar(char c)
@@ -25,7 +51,7 @@ void printbinchar(char c)
     }
 }
 
-void hex_dump(char* data, int size)
+void hex_dump(unsigned char* data, int size)
 {
   char previous;
   for (int i = 0; i < size; i++)

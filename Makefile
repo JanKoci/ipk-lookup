@@ -14,7 +14,7 @@ all: ${PROG}
 %.o: %.c %.h
 	${CC} ${FLAGS} $< -c
 
-${PROG}: ipk-lookup.o hex_dump.o args_parser.o
+${PROG}: ipk-lookup.o hex_dump.o args_parser.o dns_convert.o
 	${CC} ${FLAGS} $^ -o $@
 
 clean:
