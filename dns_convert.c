@@ -3,8 +3,64 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <netinet/in.h>
 // #include <stdlib.h>
 #include "dns_convert.h"
+
+void readIP(const uint8_t* src, uint8_t* dest, int ipv)
+{
+  int idx = 0;
+  if (ipv == 4)
+  {
+    for (int i = 0; i < 4; i++)
+    {
+      idx = strlen((char*)dest);
+      sprintf((char*)&dest[idx], "%d", src[i]);
+      if (i+1 != 4)
+      {
+        idx = strlen((char*)dest);
+        dest[idx] = '.';
+      }
+    }
+  }
+  else if (ipv == 6)
+  {
+    for (int i = 0; i < 16; i++)
+    {
+      idx = strlen((char*)dest);
+      sprintf((char*)&dest[idx], "%02x", src[i]);
+      if ((i+1)%2 == 0 && (i != 15))
+      {
+        idx = strlen((char*)dest);
+        dest[idx] = ':';
+      }
+    }
+  }
+  else
+  {
+    ;
+  }
+}
+
+int parse_iter_domain(const char* domain, int point, int len)
+{
+  for (int i = len-1; i >= 0; i--)
+  {
+    if (domain[i] == '.')
+    {
+      if (point > i)
+      {
+        point = i;
+        break;
+      }
+    }
+    if (i == 0)
+    {
+      point = i;
+    }
+  }
+  return point;
+}
 
 void print_ipv6(const uint8_t* data)
 {
@@ -36,14 +92,14 @@ int get_IPv(uint8_t* addr)
 }
 
 
-int count_groups(const uint8_t* addr)
+int count_groups(const uint8_t* addr, char delimiter)
 {
   int len = strlen((const char*)addr);
   int counter = 0;
   int group_counter = 0;
   for (int i = 0; i < len; i++)
   {
-    if (addr[i] == ':')
+    if (addr[i] == delimiter)
     {
       if (counter > 0)
       {
@@ -70,7 +126,7 @@ void convert_ipv6(const uint8_t* src, uint8_t* dest)
   int counter = 0;
   uint8_t c;
   uint8_t c_prev = 0;
-  int groups = count_groups(src);
+  int groups = count_groups(src, ':');
 
   for (int i = 0; i < len; i++) {
     c = src[len-i-1];
