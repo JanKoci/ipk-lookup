@@ -3,13 +3,47 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <netinet/in.h>
 // #include <stdlib.h>
 #include "dns_convert.h"
 
-
-int parse_iter_domain(char* domain, int point)
+void readIP(const uint8_t* src, uint8_t* dest, int ipv)
 {
-  int len = strlen(domain);
+  int idx = 0;
+  if (ipv == 4)
+  {
+    for (int i = 0; i < 4; i++)
+    {
+      idx = strlen((char*)dest);
+      sprintf((char*)&dest[idx], "%d", src[i]);
+      if (i+1 != 4)
+      {
+        idx = strlen((char*)dest);
+        dest[idx] = '.';
+      }
+    }
+  }
+  else if (ipv == 6)
+  {
+    for (int i = 0; i < 16; i++)
+    {
+      idx = strlen((char*)dest);
+      sprintf((char*)&dest[idx], "%02x", src[i]);
+      if ((i+1)%2 == 0 && (i != 15))
+      {
+        idx = strlen((char*)dest);
+        dest[idx] = ':';
+      }
+    }
+  }
+  else
+  {
+    ;
+  }
+}
+
+int parse_iter_domain(const char* domain, int point, int len)
+{
   for (int i = len-1; i >= 0; i--)
   {
     if (domain[i] == '.')

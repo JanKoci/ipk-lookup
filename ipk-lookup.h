@@ -47,7 +47,11 @@ struct dns_answer {
 };
 #pragma pack(pop)
 
-
+void clean_array(uint8_t* array, int size);
+uint16_t to_uint_type(char* type);
+int find_answer(const uint8_t* message, const uint8_t* ans_start, uint16_t type, uint8_t* dest);
+int get_answer(int client_socket, uint8_t* message, const char* server, \
+               char* stype, char* name, uint8_t* dest);
 int send_query_and_receive_answer(const char*, int, uint8_t* const, unsigned int);
 int create_query(uint8_t* const message, const char* type, const char* name);
 void create_header(struct dns_header* header);
