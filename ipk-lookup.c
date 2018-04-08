@@ -17,6 +17,7 @@
 #include "hex_dump.h"
 #include "args_parser.h"
 #include "dns_convert.h"
+#include "iterative.h"
 
 // types of DNS query
 uint16_t A = 1;
@@ -101,8 +102,7 @@ int main(int argc, char const *argv[]) {
     for (int i = 0; i < groups-1; i++)
     {
       point = parse_iter_domain(args.name, point, len);
-      // debug
-      // printf("%d. part = %s\n", i+1, args.name+point+1);
+
       if (get_answer(client_socket, message, (const char*)serverIP, "NS", (char*)args.name+point+1, serverNS) == -1)
       {
         close(client_socket);
@@ -114,34 +114,24 @@ int main(int argc, char const *argv[]) {
         exit(1);
       }
     }
-    // point = parse_iter_domain(args.name, point, len);
+
     query_len = create_query(message, args.type, args.name);
     if (query_len == -1)
     {
       close(client_socket);
       exit(1);
     }
-    // debug
-    // hex_dump((unsigned char*)message, query_len);
     /************************* Send the query *************************/
     if (send_query_and_receive_answer((const char*)serverIP, client_socket, (uint8_t* const)message, query_len) == -1)
     {
       close(client_socket);
       exit(1);
     }
-    /************************* Process the answer *************************/
-    // ans_count = ntohs(header->ans_count);
-    // ns_count = ntohs(header->ns_count);
-    // ar_count = ntohs(header->ar_count);
-    // debug
-    // printf("ans_count = %hu\n", ans_count);
-    // printf("ns_count = %hu\n", ns_count);
-    // printf("ar_count = %hu\n", ar_count);
     process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], 1);
 
   }
   else
-  {
+  { // NOT ITERATIVE
     /************************* Create the query *************************/
     query_len = create_query(message, args.type, args.name);
     if (query_len == -1)
@@ -149,8 +139,7 @@ int main(int argc, char const *argv[]) {
       close(client_socket);
       exit(1);
     }
-    // debug
-    // hex_dump((unsigned char*)message, query_len);
+
     /************************* Send the query *************************/
     if (send_query_and_receive_answer(args.server, client_socket, (uint8_t* const)message, query_len) == -1)
     {
@@ -162,10 +151,6 @@ int main(int argc, char const *argv[]) {
     ans_count = ntohs(header->ans_count);
     // ns_count = ntohs(header->ns_count);
     // ar_count = ntohs(header->ar_count);
-    // debug
-    // printf("ans_count = %hu\n", ans_count);
-    // printf("ns_count = %hu\n", ns_count);
-    // printf("ar_count = %hu\n", ar_count);
     process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], ans_count);
   }
 
@@ -174,112 +159,6 @@ int main(int argc, char const *argv[]) {
   return 0;
 }
 
-int find_answer(const uint8_t* message, const uint8_t* ans_start, uint16_t type, uint8_t* dest)
-{
-  struct dns_header* header = (struct dns_header*)message;
-  uint16_t ans_count = ntohs(header->ans_count);
-  uint16_t ns_count = ntohs(header->ns_count);
-  uint16_t ar_count = ntohs(header->ar_count);
-  const uint8_t* ret;
-  struct dns_answer* net_answer;
-  struct dns_answer answer;
-  const uint8_t* rdata;
-  const uint8_t* optional_data;
-  const uint8_t* optional_ans_start;
-  uint8_t converted_name[128] = {0};
-  int found = -1;
-  int optional_found = 0;
-
-  for (uint16_t i = 0; i < ans_count+ns_count+ar_count; i++)
-  {
-    ret = getDnsName(converted_name, (const uint8_t*)ans_start, (const uint8_t*)message);
-    net_answer = (struct dns_answer*)ret;
-    answer.type = ntohs(net_answer->type);
-    answer.cls = ntohs(net_answer->cls);
-    answer.ttl = ntohl(net_answer->ttl);
-    answer.data_len = ntohs(net_answer->data_len);
-    rdata = ret + ANSWER_SIZE;
-    if (answer.type == type)
-    {
-      found = 1;
-      if (type == A)
-      {
-        readIP(rdata, dest, 4);
-      }
-      else if (type == AAAA)
-      {
-        readIP(rdata, dest, 6);
-      }
-      else
-      {
-        getDnsName(dest, rdata, message);
-      }
-      process_answers(message, ans_start, 1);
-      break;
-    }
-    // I HOPE NS and CNAME cannot occur at the same time :)
-    else if (answer.type == NS || answer.type == CNAME)
-    {
-      if (!optional_found)
-      {
-        optional_data = rdata;
-        optional_ans_start = ans_start;
-        optional_found = 1;
-      }
-    }
-    ans_start = rdata + answer.data_len;
-
-  }
-  if (found == -1 && optional_found)
-  {
-    getDnsName(dest, optional_data, message);
-    process_answers(message, optional_ans_start, 1);
-    found = 0;
-  }
-  return found;
-}
-
-int get_answer(int client_socket, uint8_t* message, const char* server, \
-               char* stype, char* name, uint8_t* dest)
-{
-  int found = 0;
-  uint16_t type;
-  int query_len;
-  uint8_t answer_data[128] = {0};
-  memcpy(answer_data, name, strlen(name));
-
-  if ((type = to_uint_type(stype)) == 0)
-  {
-    return -1;
-  }
-
-  while (!found)
-  {
-    // create query
-    query_len = create_query(message, stype, (const char*)answer_data);
-    if (query_len == -1)
-    {
-      return -1;
-    }
-    // debug
-    // hex_dump((unsigned char*)message, query_len);
-    /************************* Send the query *************************/
-    if (send_query_and_receive_answer(server, client_socket, (uint8_t* const)message, query_len) == -1)
-    {
-      return -1;
-    }
-    /************************* Process the answer *************************/
-    clean_array(answer_data, 128);
-    if ((found = find_answer((const uint8_t*)message, (const uint8_t*)&message[query_len], type, answer_data)) == -1)
-    {
-      fprintf(stderr, "ERROR: %hu record not found in the answer\n", type);
-      return -1;
-    }
-  }
-  clean_array(dest, 128);
-  memcpy(dest, answer_data, 128);
-  return 0;
-}
 
 void clean_array(uint8_t* array, int size)
 {
@@ -289,34 +168,6 @@ void clean_array(uint8_t* array, int size)
   }
 }
 
-uint16_t to_uint_type(char* type)
-{
-  if (strcmp(type, "A") == 0)
-  {
-    return A;
-  }
-  if (strcmp(type, "AAAA") == 0)
-  {
-    return AAAA;
-  }
-  if (strcmp(type, "NS") == 0)
-  {
-    return NS;
-  }
-  if (strcmp(type, "CNAME") == 0)
-  {
-    return CNAME;
-  }
-  if (strcmp(type, "PTR") == 0)
-  {
-    return PTR;
-  }
-  else
-  {
-    fprintf(stderr, "ERROR: unknown record type %s\n", type);
-    return 0;
-  }
-}
 
 int send_query_and_receive_answer(const char* server, int client_socket, uint8_t* const message, unsigned int query_len)
 {
@@ -368,10 +219,6 @@ int create_query(uint8_t* const message, const char* type, const char* name)
   }
   uint8_t* result = toDnsNameFormat(q_name, (const uint8_t*)name);
   message_len_actual += (strlen((char*)result) + 1);
-  // debug
-  // hex_dump((unsigned char*)result, strlen((char*)result));
-  // putchar('\n');
-  // hex_dump((unsigned char*)message, sizeof(struct dns_header)+strlen((char*)result));
 
 /************************* Create question structure *************************/
   struct dns_question* question;
@@ -385,7 +232,7 @@ void create_header(struct dns_header* header)
 {
   header->id = htons(4); // what ID ???
   header->flags = 0;
-  header->flags |= htons(RECURSIVE); // ALWAYS ?????
+  header->flags |= htons(RECURSIVE);
   header->q_count = htons(1);
   header->ans_count = 0;
   header->ns_count = 0;

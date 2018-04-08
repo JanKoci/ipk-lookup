@@ -1,10 +1,17 @@
+/******** dns_convert.c - IPK Project 2 **********
+* Author: Jan Koci
+* Date: 24.3.2018
+* Brief: functions to convert string representation of a IP address,
+*        entered from the user to correct dsn format
+* Example: 123.54.63.4 => 4.63.54.123.in-addr.arpa
+************************************************/
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <netinet/in.h>
-// #include <stdlib.h>
+
 #include "dns_convert.h"
 
 void readIP(const uint8_t* src, uint8_t* dest, int ipv)
