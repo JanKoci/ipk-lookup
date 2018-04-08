@@ -47,14 +47,45 @@ struct dns_answer {
 };
 #pragma pack(pop)
 
+
+/**
+* @brief clean array data (fill array with zero bytes)
+* @param array  the array to clean
+* @param size   size of the array
+*/
 void clean_array(uint8_t* array, int size);
-uint16_t to_uint_type(char* type);
-int find_answer(const uint8_t* message, const uint8_t* ans_start, uint16_t type, uint8_t* dest);
-int get_answer(int client_socket, uint8_t* message, const char* server, \
-               char* stype, char* name, uint8_t* dest);
+
+/**
+* @brief send dns message (query) to server
+* @param server         server to send the query to
+* @param client_socket  socket for udp communication
+* @param message        pointer to the dns message
+* @param query_len      length of the dns message
+* @return   0 when success
+*          -1 when an error occurs
+*/
 int send_query_and_receive_answer(const char*, int, uint8_t* const, unsigned int);
+
+/**
+* @brief create dns query message
+* @param message  buffer to stores the message
+* @param type     type of dns query
+* @param name     the domain name / IP address to query about
+* @return    lenght of the message
+*/
 int create_query(uint8_t* const message, const char* type, const char* name);
+
+/**
+* @brief create dns message header
+* @param header   pointer to the dns header structure
+*/
 void create_header(struct dns_header* header);
+
+/**
+* @brief fill the dns_question structure
+* @param question   the dns_question structure
+* @param type       dns question type
+*/
 void create_question(struct dns_question* question, const char* type);
 void process_answers(const uint8_t* message, const uint8_t* dns_name, uint16_t ans_count);
 const uint8_t* getDnsName(uint8_t* converted_name, const uint8_t* dns_name, const uint8_t* base);
