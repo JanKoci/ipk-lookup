@@ -11,11 +11,23 @@ PROG = ipk-lookup
 
 all: ${PROG}
 
-%.o: %.c %.h
-	${CC} ${FLAGS} $< -c
+ipk-lookup.o: ipk-lookup.c
+	${CC} ${FLAGS} ipk-lookup.c -c
+
+hex_dump.o: hex_dump.c
+	${CC} ${FLAGS} hex_dump.c -c
+
+args_parser.o: args_parser.c
+	${CC} ${FLAGS} args_parser.c -c
+
+dns_convert.o: dns_convert.c
+	${CC} ${FLAGS} dns_convert.c -c
+
+iterative.o: iterative.c
+	${CC} ${FLAGS} iterative.c -c
 
 ${PROG}: ipk-lookup.o hex_dump.o args_parser.o dns_convert.o iterative.o
-	${CC} ${FLAGS} $^ -o $@
+	${CC} ${FLAGS} ipk-lookup.o hex_dump.o args_parser.o dns_convert.o iterative.o -o ${PROG}
 
 zip:
 	zip xkocij01.zip *.c *.h Makefile README.md *.pdf
