@@ -17,5 +17,8 @@ all: ${PROG}
 ${PROG}: ipk-lookup.o hex_dump.o args_parser.o dns_convert.o iterative.o
 	${CC} ${FLAGS} $^ -o $@
 
+zip:
+	zip xkocij01.zip *.c *.h Makefile README.md *.pdf
+
 clean:
 	rm ${OBJ} ${PROG}

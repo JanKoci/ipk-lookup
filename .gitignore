@@ -1,8 +1,10 @@
-# Experimental files 
+# Experimental files
 pokus*
 
 # Executable program
 ipk-lookup
+
+*.zip
 
 # Prerequisites
 *.d
