@@ -5,7 +5,7 @@
 # 					a DNS lookup application
 
 CC = gcc
-FLAGS = -Wall -Wextra -pedantic -Werror -g
+FLAGS = -Wall -Wextra -pedantic -Werror
 OBJ = *.o
 PROG = ipk-lookup
 

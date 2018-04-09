@@ -94,8 +94,6 @@ void parse(int argc, char const* argv[], Arguments* args)
   {
     fprintf(stderr, "ERROR: Missing name of the domain to be translated\n");
     print_usage(argv[0]);
-    // printf("optind = %d\n", optind);
-    // printf("argc = %d\n", argc);
     exit(2);
   }
   else

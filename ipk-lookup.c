@@ -3,6 +3,7 @@
 * Date: 24.3.2018
 * Brief: basic tool for communication with DNS servers
         using socket programming and UDP protocol
+* see comments in ipk-lookup.h
 ************************************************/
 #include <stdio.h>
 #include <unistd.h>
@@ -12,6 +13,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "ipk-lookup.h"
 #include "hex_dump.h"
@@ -34,8 +36,10 @@ uint16_t port = PORT; // PORT 53
 int main(int argc, char const *argv[]) {
   int client_socket;
   uint8_t message[MESSAGE_LEN] = {0};
+  uint16_t type;
   int query_len = 0;
   struct timeval timeout;
+  bool found = false;
 
   /******************** Parse command line arguments ********************/
   Arguments args;
@@ -127,7 +131,11 @@ int main(int argc, char const *argv[]) {
       close(client_socket);
       exit(1);
     }
-    process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], 1);
+    if ((type = to_uint_type((char*)args.type)) == 0)
+    {
+      return 1;
+    }
+    process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], 1, type);
 
   }
   else
@@ -151,12 +159,23 @@ int main(int argc, char const *argv[]) {
     ans_count = ntohs(header->ans_count);
     // ns_count = ntohs(header->ns_count);
     // ar_count = ntohs(header->ar_count);
-    process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], ans_count);
+    if ((type = to_uint_type((char*)args.type)) == 0)
+    {
+      return 1;
+    }
+    found = process_answers((const uint8_t*)message, (const uint8_t*)&message[query_len], ans_count, type);
   }
 
   /************************* Close socket *************************/
   close(client_socket);
-  return 0;
+  if (!found)
+  {
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
 }
 
 
@@ -203,8 +222,9 @@ int create_query(uint8_t* const message, const char* type, const char* name)
   header = (struct dns_header*)message;
   create_header(header);
   message_len_actual += sizeof(struct dns_header);
-
   uint8_t* q_name = &message[message_len_actual];
+
+  // if type is PTR convert name to required format
   if (strcmp(type, "PTR") == 0)
   {
     int ipv;
@@ -264,9 +284,11 @@ void create_question(struct dns_question* question, const char* type)
   question->cls = htons(IN);
 }
 
-void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t ans_count)
+// todo: must return bool !!!
+bool process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t ans_count, uint16_t type)
 {
   uint8_t converted_name[128] = {0};
+  bool found = false;
   struct dns_answer* net_answer;
   struct dns_answer answer;
   const uint8_t* ret;
@@ -281,14 +303,16 @@ void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t 
     answer.cls = ntohs(net_answer->cls);
     answer.ttl = ntohl(net_answer->ttl);
     answer.data_len = ntohs(net_answer->data_len);
-    printf("%s ", converted_name);
-    // debug
-    // printf("%c\n", *ret);
-    print_ans(&answer);
     const uint8_t* rdata = ret + ANSWER_SIZE;
     ans_start = rdata + answer.data_len;
+    if (answer.type == type)
+    {
+      found = true;
+    }
     if (answer.type == A)
     {
+      printf("%s ", converted_name);
+      print_ans(&answer);
       for (uint16_t j = 0; j < answer.data_len; j++)
       {
         printf("%u", *rdata++);
@@ -297,25 +321,33 @@ void process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t 
           putchar('.');
         }
       }
+      putchar('\n');
     }
     else if (answer.type == CNAME || answer.type == NS || answer.type == PTR)
     {
+      printf("%s ", converted_name);
+      print_ans(&answer);
       ret = getDnsName(converted_name, (const uint8_t*)rdata, (const uint8_t*)message);
       printf("%s ", converted_name);
       if (ret != ans_start)
       {
         ans_start = ret;
       }
+      putchar('\n');
     }
     else if (answer.type == AAAA)
     {
+      printf("%s ", converted_name);
+      print_ans(&answer);
       print_ipv6(rdata);
+      putchar('\n');
     }
-    putchar('\n');
     memset(converted_name, 0, 128);
     memset(&answer, 0, sizeof(answer));
   }
+  return found;
 }
+
 
 const uint8_t* getDnsName(uint8_t* converted_name, const uint8_t* dns_name, const uint8_t* base)
 {
@@ -375,12 +407,6 @@ const uint8_t* getDnsName(uint8_t* converted_name, const uint8_t* dns_name, cons
 }
 
 
-/*
-Function to convert hostname to dns host name format
-@param dnsName    pointer to memory to store the converted value
-@param host       the hostname to be converted
-@return           pointer to the beginning of the converted value
-*/
 uint8_t* toDnsNameFormat(uint8_t* dnsName, const uint8_t* host)
 {
   unsigned int point = 0;

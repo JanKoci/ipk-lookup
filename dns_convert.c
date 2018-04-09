@@ -4,6 +4,7 @@
 * Brief: functions to convert string representation of a IP address,
 *        entered from the user to correct dsn format
 * Example: 123.54.63.4 => 4.63.54.123.in-addr.arpa
+*   see comments in dns_convert.h
 ************************************************/
 #include <stdint.h>
 #include <stdio.h>

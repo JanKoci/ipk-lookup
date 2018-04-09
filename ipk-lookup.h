@@ -87,9 +87,32 @@ void create_header(struct dns_header* header);
 * @param type       dns question type
 */
 void create_question(struct dns_question* question, const char* type);
-void process_answers(const uint8_t* message, const uint8_t* dns_name, uint16_t ans_count);
+
+/**
+* @brief print dns answers
+* @param message    the dns message containing answers
+* @param ans_start  start of the first answer
+* @param ans_count  number of answers to print
+*/
+bool process_answers(const uint8_t* message, const uint8_t* ans_start, uint16_t ans_count, uint16_t type);
+
+/**
+* @brief converts encoded domain name from dns format to string representation
+* Example: 03www03fit02cz => www.fit.cz
+* @param converted_name   store here the converted domain name
+* @param dns_name         stores the original data
+* @param base             pointer to the start of the dns message
+* @return pointer behind the last answer
+*/
 const uint8_t* getDnsName(uint8_t* converted_name, const uint8_t* dns_name, const uint8_t* base);
+
+/**
+* @brief encodes domain name string representation into dns required format
+* Example: www.fit.cz => 03www03fit02cz
+* @param dnsName  store here the converted data
+* @param host     stores domain's string representation
+* @return pointer to the beginning of converted data in dnsName
+*/
 uint8_t* toDnsNameFormat(uint8_t* dnsName, const uint8_t* host);
-int get_IPv(uint8_t* addr);
 
 #endif // IPK_LOOKUP_H

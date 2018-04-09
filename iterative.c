@@ -52,7 +52,7 @@ int find_answer(const uint8_t* message, const uint8_t* ans_start, uint16_t type,
       {
         getDnsName(dest, rdata, message);
       }
-      process_answers(message, ans_start, 1);
+      process_answers(message, ans_start, 1, type);
       break;
     }
 
@@ -71,7 +71,7 @@ int find_answer(const uint8_t* message, const uint8_t* ans_start, uint16_t type,
   if (found == -1 && optional_found)
   {
     getDnsName(dest, optional_data, message);
-    process_answers(message, optional_ans_start, 1);
+    process_answers(message, optional_ans_start, 1, type);
     found = 0;
   }
   return found;
